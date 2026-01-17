@@ -49,6 +49,7 @@ services:
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=public
 
       # Оптимизация производительности для слабого сервера
       - EXECUTIONS_PROCESS=main              # Выполнение в основном процессе (меньше памяти)
