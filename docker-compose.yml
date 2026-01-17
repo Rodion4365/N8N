@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: n8n_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Ограничения ресурсов для PostgreSQL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'           # Максимум 50% одного ядра
+          memory: 384M          # Максимум 384MB памяти
+        reservations:
+          cpus: '0.25'          # Минимум 25% одного ядра
+          memory: 128M          # Минимум 128MB памяти
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"  # Доступ только с localhost (через Nginx)
+    environment:
+      # Базовые настройки
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=${WEBHOOK_URL}
+
+      # Аутентификация
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+
+      # База данных PostgreSQL
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+
+      # Оптимизация производительности для слабого сервера
+      - EXECUTIONS_PROCESS=main              # Выполнение в основном процессе (меньше памяти)
+      - EXECUTIONS_DATA_PRUNE=true          # Автоочистка старых выполнений
+      - EXECUTIONS_DATA_MAX_AGE=168         # Хранить выполнения 7 дней
+      - N8N_DIAGNOSTICS_ENABLED=false       # Отключить диагностику
+      - N8N_HIRING_BANNER_ENABLED=false     # Отключить баннер
+
+      # Ограничения для workflow
+      - EXECUTIONS_TIMEOUT=300              # Таймаут выполнения 5 минут
+      - EXECUTIONS_TIMEOUT_MAX=600          # Максимальный таймаут 10 минут
+
+      # Timezone
+      - GENERIC_TIMEZONE=Europe/Moscow
+      - TZ=Europe/Moscow
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Ограничения ресурсов для n8n
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'           # Максимум 1 ядро
+          memory: 768M          # Максимум 768MB памяти
+        reservations:
+          cpus: '0.5'           # Минимум 50% ядра
+          memory: 384M          # Минимум 384MB памяти
+
+volumes:
+  postgres_data:
+    driver: local
+  n8n_data:
+    driver: local
