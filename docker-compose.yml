@@ -9,11 +9,12 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
-      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+      # Используем trust для локальной сети Docker (безопасно, т.к. изолировано)
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh:ro
+    networks:
+      - default
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
@@ -45,8 +46,7 @@ services:
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
 
-      # База данных PostgreSQL (используем DATABASE_URL как основной метод)
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # База данных PostgreSQL
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
@@ -116,4 +116,4 @@ networks:
     driver: bridge
   traefik_network:
     external: true
-    name: ${TRAEFIK_NETWORK:-infra_default}  # Имя сети Traefik (по умолчанию infra_default)
+    name: ${TRAEFIK_NETWORK:-infra_web}  # Имя сети Traefik (по умолчанию infra_web)
