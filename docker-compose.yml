@@ -5,12 +5,14 @@ services:
     image: postgres:15-alpine
     container_name: n8n_postgres
     restart: unless-stopped
+    command: postgres -c hba_file=/var/lib/postgresql/data/pg_hba.conf
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./pg_hba_custom.conf:/var/lib/postgresql/data/pg_hba.conf
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
@@ -42,13 +44,15 @@ services:
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
 
-      # База данных PostgreSQL
+      # База данных PostgreSQL (используем DATABASE_URL как основной метод)
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=public
 
       # Оптимизация производительности для слабого сервера
       - EXECUTIONS_PROCESS=main              # Выполнение в основном процессе (меньше памяти)
